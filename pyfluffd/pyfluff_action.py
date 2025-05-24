@@ -1,7 +1,7 @@
 import logging
 import asyncio # For sleep, TimeoutError
 import os # For path operations in flash_dlc
-from pyfluffd.pyfluff_con import PyFluffConnect, BleakError, TimeoutError as FluffTimeoutError
+from pyfluff_con import PyFluffConnect, BleakError, TimeoutError as FluffTimeoutError
 
 # Ensure logger is defined (it should be, as per instructions)
 # This check is more for robustness if this file were used in isolation without pyfluffd.py setting up basicConfig

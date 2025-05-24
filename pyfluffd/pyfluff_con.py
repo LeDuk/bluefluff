@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 if not logging.getLogger().hasHandlers(): # Check if root logger has handlers
     logging.basicConfig(level=logging.DEBUG) # Default to DEBUG for standalone testing
 
+bleak_logger = logging.getLogger('bleak')
+bleak_logger.setLevel(logging.WARNING)
+
 # GATT Service and Characteristic UUIDs
 SERVICE_FLUFF = "dab91435b5a1e29cb041bcd562613bde"
 _CHAR_GENERALPLUS_WRITE = "dab91383b5a1e29cb041bcd562613bde"
@@ -208,9 +211,9 @@ class PyFluffConnect:
         
         # Determine characteristic from sender handle if possible/needed for logging
         char_name = "Unknown Characteristic"
-        if sender == self.client.services.get_characteristic(FURBY_CHARACTERISTICS['CHAR_GENERALPLUS_LISTEN'])?.handle: # Optional chaining if available
+        if sender == self.client.services.get_characteristic(FURBY_CHARACTERISTICS['CHAR_GENERALPLUS_LISTEN']).handle: # Optional chaining if available
              char_name = "GeneralPlus Listen"
-        elif sender == self.client.services.get_characteristic(FURBY_CHARACTERISTICS['CHAR_NORDIC_LISTEN'])?.handle:
+        elif sender == self.client.services.get_characteristic(FURBY_CHARACTERISTICS['CHAR_NORDIC_LISTEN']).handle:
              char_name = "Nordic Listen"
         logger.debug(f"Notification on {self.address} from {char_name} (Handle: {sender}): Data: {data.hex()}")
 

@@ -3,8 +3,8 @@ import json
 import asyncio
 import logging
 from urllib.parse import urlparse, parse_qs # parse_qs might not be needed if strictly POST
-from pyfluffd.pyfluff_con import PyFluffConnect
-import pyfluffd.pyfluff_action as pyfluff_action
+from pyfluff_con import PyFluffConnect
+import pyfluff_action as pyfluff_action
 
 # Initialize logging
 # Ensure this is only done once, typically at the application entry point.
