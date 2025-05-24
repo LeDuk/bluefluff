@@ -56,15 +56,29 @@ class FluffRequestHandler(http.server.BaseHTTPRequestHandler):
         elif parsed_path.path == '/scan':
             logger.info("Handling /scan endpoint.")
             if server_event_loop:
-                async def _discover_and_log():
-                    logger.info("Scheduling Furby discovery...")
+                async def _discover_devices_async():
+                    logger.info("Starting Furby discovery in _discover_devices_async...")
                     try:
                         found_devices = await PyFluffConnect.discover_furbys()
-                        logger.info(f"Discovery finished. Found devices: {[d.address for d in found_devices]}")
+                        # PyFluffConnect.discover_furbys already logs found devices
+                        return found_devices 
                     except Exception as e_discover:
-                        logger.error(f"Error during Furby discovery: {e_discover}", exc_info=True)
-                asyncio.run_coroutine_threadsafe(_discover_and_log(), server_event_loop)
-                self._send_response(200, 'text/plain', b"Scanning initiated. Check server logs for results.")
+                        logger.error(f"Error during Furby discovery in _discover_devices_async: {e_discover}", exc_info=True)
+                        return e_discover # Propagate exception to be handled by future.result()
+                
+                future = asyncio.run_coroutine_threadsafe(_discover_devices_async(), server_event_loop)
+                try:
+                    result = future.result(timeout=10.0) # Changed from future.get
+                    if isinstance(result, Exception):
+                        # If _discover_devices_async returned an exception
+                        raise result 
+                    # Assuming result is a list of BLEDevice objects
+                    discovered_addresses = [d.address for d in result if hasattr(d, 'address')]
+                    logger.info(f"Scan completed. Discovered addresses: {discovered_addresses}")
+                    self._send_response(200, 'application/json', json.dumps({"status": "ok", "message": "Scanning completed.", "devices": discovered_addresses}).encode('utf-8'))
+                except Exception as e:
+                    logger.error(f"Error during scan future.result() or processing: {e}", exc_info=True)
+                    self._send_response(500, 'application/json', json.dumps({"status": "error", "message": f"Scan failed or timed out: {str(e)}"}).encode('utf-8'))
             else:
                 logger.error("Server event loop not available for /scan.")
                 self._send_response(500, 'text/plain', b"Server error: cannot initiate scan.")
@@ -103,7 +117,7 @@ class FluffRequestHandler(http.server.BaseHTTPRequestHandler):
 
             future = asyncio.run_coroutine_threadsafe(_connect_async(device_address), server_event_loop)
             try:
-                success, message = future.get(timeout=15.0) # Connection timeout
+                success, message = future.result(timeout=15.0) # Changed from future.get
                 if success:
                     logger.info(f"Connection to {device_address} successful: {message}")
                     self._send_response(200, 'application/json', json.dumps({"status": "ok", "message": message}).encode('utf-8'))
@@ -142,7 +156,7 @@ class FluffRequestHandler(http.server.BaseHTTPRequestHandler):
 
             future = asyncio.run_coroutine_threadsafe(_disconnect_async(device_address), server_event_loop)
             try:
-                success, message = future.get(timeout=10.0) # Disconnection timeout
+                success, message = future.result(timeout=10.0) # Changed from future.get
                 if success:
                     logger.info(f"Disconnection from {device_address} successful: {message}")
                     self._send_response(200, 'application/json', json.dumps({"status": "ok", "message": message}).encode('utf-8'))
@@ -242,7 +256,7 @@ class FluffRequestHandler(http.server.BaseHTTPRequestHandler):
                 logger.debug(f"Scheduling command '{command_name}' for execution.")
                 future = asyncio.run_coroutine_threadsafe(_execute_command_async(), server_event_loop)
                 try:
-                    success, response_data = future.get(timeout=45.0) 
+                    success, response_data = future.result(timeout=45.0) # Changed from future.get
                     if success:
                         logger.info(f"Command '{command_name}' (target: {target_uuid or 'broadcast'}) processed successfully. Response details: {response_data}")
                         self._send_response(200, 'application/json', json.dumps({"status": "ok", "details": response_data}).encode('utf-8'))
